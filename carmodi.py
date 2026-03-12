@@ -19,7 +19,7 @@ st.title("🚗 Vehicle Maintenance Classification System")
 @st.cache_data
 def load_and_preprocess_data():
 
-    df = pd.read_csv(r'D:\PythonProject\csv\vehical.csv')
+    df = pd.read_csv(r'vehical.csv')
 
     # REMOVE ENGINE SIZE COLUMN
     if 'Engine_Size' in df.columns:
@@ -233,5 +233,6 @@ with row3[0]:
         y="Odometer_Reading",
         title="Vehicle Age vs Distance Density"
     )
+
 
     st.plotly_chart(fig8,use_container_width=True)
