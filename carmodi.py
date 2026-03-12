@@ -13,12 +13,12 @@ from sklearn.ensemble import RandomForestClassifier
 st.set_page_config(page_title="Vehicle Maintenance AI", layout="wide")
 st.title("🚗 Vehicle Maintenance Classification System")
 
+
 # ===============================
 # DATA LOADING & PREPROCESSING
 # ===============================
 @st.cache_data
 def load_and_preprocess_data():
-
     df = pd.read_csv(r'vehical.csv')
 
     # REMOVE ENGINE SIZE COLUMN
@@ -42,6 +42,7 @@ def load_and_preprocess_data():
     df = df.dropna()
     return df
 
+
 df = load_and_preprocess_data()
 
 # ===============================
@@ -59,12 +60,12 @@ for col in df_encoded.columns:
 X = df_encoded.drop('Need_Maintenance', axis=1)
 y = df_encoded['Need_Maintenance']
 
+
 # ===============================
 # MODEL TRAINING
 # ===============================
 @st.cache_resource
 def train_model(X, y):
-
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
@@ -77,6 +78,7 @@ def train_model(X, y):
     clf.fit(X_train, y_train)
 
     return clf
+
 
 model = train_model(X, y)
 
@@ -115,7 +117,7 @@ with tab1:
                 else:
                     user_input_dict[column] = None
 
-            elif column in ['Reported_Issues','Vehicle_Age','Service_History','Accident_History']:
+            elif column in ['Reported_Issues', 'Vehicle_Age', 'Service_History', 'Accident_History']:
 
                 user_input_dict[column] = st.number_input(
                     f"Enter {column}",
@@ -149,12 +151,12 @@ with tab1:
             if prediction[0] == 1:
 
                 st.error("⚠️ Maintenance Required!")
-                st.write(f"Confidence Level: **{probability*100:.1f}%**")
+                st.write(f"Confidence Level: **{probability * 100:.1f}%**")
 
             else:
 
                 st.success("✅ Vehicle is Safe!")
-                st.write(f"Risk Probability: **{probability*100:.1f}%**")
+                st.write(f"Risk Probability: **{probability * 100:.1f}%**")
 
 # ===============================
 # TAB 2: DATA VISUALIZATION
@@ -170,7 +172,7 @@ with tab2:
     with row1[0]:
         temp_df = df.copy()
         temp_df['Status'] = temp_df['Need_Maintenance'].map(
-            {1:'Needs Service',0:'Healthy'}
+            {1: 'Needs Service', 0: 'Healthy'}
         )
         fig1 = px.pie(
             temp_df,
@@ -178,13 +180,13 @@ with tab2:
             hole=0.4,
             title="Overall Fleet Health"
         )
-        st.plotly_chart(fig1,use_container_width=True)
+        st.plotly_chart(fig1, use_container_width=True)
 
     # 2 Feature Importance
     with row1[1]:
         feat_df = pd.DataFrame({
-            "Feature":X.columns,
-            "Importance":model.feature_importances_
+            "Feature": X.columns,
+            "Importance": model.feature_importances_
         }).sort_values(by="Importance")
         fig2 = px.bar(
             feat_df,
@@ -193,7 +195,7 @@ with tab2:
             orientation='h',
             title="Top Decision Factors"
         )
-        st.plotly_chart(fig2,use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True)
 
     # 3 Reported Issues vs Maintenance
     with row2[0]:
@@ -204,7 +206,7 @@ with tab2:
             barmode="group",
             title="Impact of Reported Issues on Maintenance"
         )
-        st.plotly_chart(fig3,use_container_width=True)
+        st.plotly_chart(fig3, use_container_width=True)
 
     # 4 Vehicle Model Health
     with row2[1]:
@@ -214,7 +216,7 @@ with tab2:
             color="Need_Maintenance",
             title="Maintenance Needs by Vehicle Model"
         )
-        st.plotly_chart(fig5,use_container_width=True)
+        st.plotly_chart(fig5, use_container_width=True)
 
     # 5 Vehicle Age vs Distance Density
     with row3[0]:
@@ -224,19 +226,19 @@ with tab2:
             y="Odometer_Reading",
             title="Vehicle Age vs Distance Density"
         )
-        st.plotly_chart(fig8,use_container_width=True)
+        st.plotly_chart(fig8, use_container_width=True)
 
 # ===============================
 # TAB 3: DATA PREVIEW
 # ===============================
 with tab3:
     st.header("📋 Dataset Preview")
-    
+
     # Displays the number of rows and columns in the dataset
     st.write(f"This dataset contains **{df.shape[0]} rows** and **{df.shape[1]} columns**.")
-    
+
     st.markdown("---")
     st.write("Below is the raw data used to train the machine learning model:")
-    
+
     # Displays the data as an interactive table
     st.dataframe(df, use_container_width=True)
