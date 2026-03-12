@@ -6,7 +6,6 @@ import plotly.express as px
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
-# New import for classification accuracy
 from sklearn.metrics import accuracy_score
 
 # ===============================
@@ -64,7 +63,7 @@ y = df_encoded['Need_Maintenance']
 
 
 # ===============================
-# MODEL TRAINING (UPDATED TO RETURN SCORE)
+# MODEL TRAINING (SOLVED OVERFITTING)
 # ===============================
 @st.cache_resource
 def train_model(X, y):
@@ -72,29 +71,38 @@ def train_model(X, y):
         X, y, test_size=0.2, random_state=42
     )
 
+    # Added hyperparameters to prevent overfitting!
     clf = RandomForestClassifier(
         n_estimators=100,
+        max_depth=7,               # Restricts how deep the tree can grow
+        min_samples_split=10,      # Requires at least 10 samples to split a node
+        min_samples_leaf=5,        # Requires at least 5 samples in a leaf
         random_state=42
     )
 
     clf.fit(X_train, y_train)
     
-    # Calculate predictions on the testing data
-    y_pred = clf.predict(X_test)
+    # Calculate predictions
+    y_train_pred = clf.predict(X_train)
+    y_test_pred = clf.predict(X_test)
     
-    # Calculate Accuracy Score
-    accuracy = accuracy_score(y_test, y_pred)
+    # Calculate both accuracies to prove it's not overfitting
+    train_acc = accuracy_score(y_train, y_train_pred)
+    test_acc = accuracy_score(y_test, y_test_pred)
 
-    return clf, accuracy
+    return clf, train_acc, test_acc
 
 
-# Unpack the model and the score
-model, model_accuracy = train_model(X, y)
+# Unpack the model and the scores
+model, train_accuracy, test_accuracy = train_model(X, y)
 
 # ===============================
-# DISPLAY MODEL SCORE (NEW)
+# DISPLAY MODEL SCORES (NEW)
 # ===============================
-st.markdown(f'<p style="text-align:center; font-size:22px; color:#00ff9d; margin-bottom:20px;"><strong>🎯 AI Model Accuracy: {model_accuracy:.2%}</strong></p>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; margin-bottom:20px;">', unsafe_allow_html=True)
+st.markdown(f'<span style="font-size:20px; color:#cccccc; margin-right: 20px;">📘 Training Accuracy: <strong>{train_accuracy:.2%}</strong></span>', unsafe_allow_html=True)
+st.markdown(f'<span style="font-size:22px; color:#00ff9d;"><strong>🎯 Testing Accuracy (Real Score): {test_accuracy:.2%}</strong></span>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ===============================
 # TABS SETUP
