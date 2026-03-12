@@ -8,25 +8,21 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-# ===============================
-# PAGE SETUP
-# ===============================
+
 st.set_page_config(page_title="Vehicle Maintenance AI", layout="wide", page_icon="🚗")
 st.title("🚗 Vehicle Maintenance Classification System")
 
 
-# ===============================
-# DATA LOADING & PREPROCESSING
-# ===============================
+
 @st.cache_data
 def load_and_preprocess_data():
-    df = pd.read_csv('vehical.csv') # Ensure this path is correct or relative
+    df = pd.read_csv('vehical.csv') 
 
-    # REMOVE ENGINE SIZE COLUMN
+   
     if 'Engine_Size' in df.columns:
         df = df.drop(columns=['Engine_Size'])
 
-    # Create target column if it doesn't exist
+ 
     if 'Need_Maintenance' not in df.columns:
         df['Need_Maintenance'] = np.where(
             (df['Reported_Issues'] > 0) |
@@ -35,7 +31,7 @@ def load_and_preprocess_data():
             (df['Tire_Condition'] == 'Worn Out'), 1, 0
         )
 
-    # Remove Date columns
+
     for col in list(df.columns):
         if 'Date' in col:
             df = df.drop(columns=[col])
@@ -46,9 +42,7 @@ def load_and_preprocess_data():
 
 df = load_and_preprocess_data()
 
-# ===============================
-# ENCODING
-# ===============================
+
 label_encoders = {}
 df_encoded = df.copy()
 
@@ -62,22 +56,20 @@ X = df_encoded.drop('Need_Maintenance', axis=1)
 y = df_encoded['Need_Maintenance']
 
 
-# ===============================
-# MODEL TRAINING (SOLVED OVERFITTING)
-# ===============================
+
 @st.cache_resource
 def train_model(X, y):
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
-    # Added hyperparameters to prevent overfitting!
+   
     clf = RandomForestClassifier(
         n_estimators=100,
-        max_depth=7,               # Restricts how deep the tree can grow
-        min_samples_split=10,      # Requires at least 10 samples to split a node
-        min_samples_leaf=5,        # Requires at least 5 samples in a leaf
-        random_state=42
+        max_depth=7,               
+        min_samples_split=10,      
+        min_samples_leaf=5,        
+        random_state=36
     )
 
     clf.fit(X_train, y_train)
@@ -264,3 +256,4 @@ with tab3:
 
     # Displays the data as an interactive table
     st.dataframe(df, use_container_width=True)
+
