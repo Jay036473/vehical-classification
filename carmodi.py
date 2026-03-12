@@ -6,11 +6,13 @@ import plotly.express as px
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
+# New import for classification accuracy
+from sklearn.metrics import accuracy_score
 
 # ===============================
 # PAGE SETUP
 # ===============================
-st.set_page_config(page_title="Vehicle Maintenance AI", layout="wide")
+st.set_page_config(page_title="Vehicle Maintenance AI", layout="wide", page_icon="🚗")
 st.title("🚗 Vehicle Maintenance Classification System")
 
 
@@ -19,7 +21,7 @@ st.title("🚗 Vehicle Maintenance Classification System")
 # ===============================
 @st.cache_data
 def load_and_preprocess_data():
-    df = pd.read_csv(r'vehical.csv')
+    df = pd.read_csv('vehical.csv') # Ensure this path is correct or relative
 
     # REMOVE ENGINE SIZE COLUMN
     if 'Engine_Size' in df.columns:
@@ -62,7 +64,7 @@ y = df_encoded['Need_Maintenance']
 
 
 # ===============================
-# MODEL TRAINING
+# MODEL TRAINING (UPDATED TO RETURN SCORE)
 # ===============================
 @st.cache_resource
 def train_model(X, y):
@@ -76,11 +78,23 @@ def train_model(X, y):
     )
 
     clf.fit(X_train, y_train)
+    
+    # Calculate predictions on the testing data
+    y_pred = clf.predict(X_test)
+    
+    # Calculate Accuracy Score
+    accuracy = accuracy_score(y_test, y_pred)
 
-    return clf
+    return clf, accuracy
 
 
-model = train_model(X, y)
+# Unpack the model and the score
+model, model_accuracy = train_model(X, y)
+
+# ===============================
+# DISPLAY MODEL SCORE (NEW)
+# ===============================
+st.markdown(f'<p style="text-align:center; font-size:22px; color:#00ff9d; margin-bottom:20px;"><strong>🎯 AI Model Accuracy: {model_accuracy:.2%}</strong></p>', unsafe_allow_html=True)
 
 # ===============================
 # TABS SETUP
