@@ -25,6 +25,7 @@ def load_and_preprocess_data():
     if 'Engine_Size' in df.columns:
         df = df.drop(columns=['Engine_Size'])
 
+    # Create target column if it doesn't exist
     if 'Need_Maintenance' not in df.columns:
         df['Need_Maintenance'] = np.where(
             (df['Reported_Issues'] > 0) |
@@ -33,13 +34,13 @@ def load_and_preprocess_data():
             (df['Tire_Condition'] == 'Worn Out'), 1, 0
         )
 
+    # Remove Date columns
     for col in list(df.columns):
         if 'Date' in col:
             df = df.drop(columns=[col])
 
     df = df.dropna()
     return df
-
 
 df = load_and_preprocess_data()
 
@@ -77,162 +78,165 @@ def train_model(X, y):
 
     return clf
 
-
 model = train_model(X, y)
 
 # ===============================
-# USER INPUT UI
+# TABS SETUP
 # ===============================
-st.header("🔍 Predict Your Vehicle's Status")
-st.write("Fill in the details below to check if your vehicle requires maintenance.")
+tab1, tab2, tab3 = st.tabs(["🔮 Prediction App", "📊 Interactive Insights", "📋 Data Preview"])
 
-user_input_dict = {}
-cols = st.columns(2)
+# ===============================
+# TAB 1: USER INPUT & PREDICTION
+# ===============================
+with tab1:
+    st.header("🔍 Predict Your Vehicle's Status")
+    st.write("Fill in the details below to check if your vehicle requires maintenance.")
 
-for i, column in enumerate(X.columns):
+    user_input_dict = {}
+    cols = st.columns(2)
 
-    with cols[i % 2]:
+    for i, column in enumerate(X.columns):
 
-        if column in label_encoders:
+        with cols[i % 2]:
 
-            options = list(label_encoders[column].classes_)
+            if column in label_encoders:
 
-            selected = st.selectbox(
-                f"Select {column}",
-                options,
-                index=None,
-                placeholder="Choose an option..."
-            )
+                options = list(label_encoders[column].classes_)
 
-            if selected:
-                user_input_dict[column] = label_encoders[column].transform([selected])[0]
+                selected = st.selectbox(
+                    f"Select {column}",
+                    options,
+                    index=None,
+                    placeholder="Choose an option..."
+                )
+
+                if selected:
+                    user_input_dict[column] = label_encoders[column].transform([selected])[0]
+                else:
+                    user_input_dict[column] = None
+
+            elif column in ['Reported_Issues','Vehicle_Age','Service_History','Accident_History']:
+
+                user_input_dict[column] = st.number_input(
+                    f"Enter {column}",
+                    value=0,
+                    step=1
+                )
+
             else:
-                user_input_dict[column] = None
 
-        elif column in ['Reported_Issues','Vehicle_Age','Service_History','Accident_History']:
+                user_input_dict[column] = st.number_input(
+                    f"Enter {column}",
+                    value=0.0
+                )
 
-            user_input_dict[column] = st.number_input(
-                f"Enter {column}",
-                value=0,
-                step=1
-            )
+    st.markdown("---")
 
-        else:
+    if st.button("Check Maintenance Requirement", use_container_width=True):
 
-            user_input_dict[column] = st.number_input(
-                f"Enter {column}",
-                value=0.0
-            )
+        if None in user_input_dict.values():
 
-# ===============================
-# PREDICTION
-# ===============================
-st.markdown("---")
-
-if st.button("Check Maintenance Requirement", use_container_width=True):
-
-    if None in user_input_dict.values():
-
-        st.warning("Please fill in all the details before predicting.")
-
-    else:
-
-        input_df = pd.DataFrame([user_input_dict])
-
-        prediction = model.predict(input_df)
-
-        probability = model.predict_proba(input_df)[0][1]
-
-        if prediction[0] == 1:
-
-            st.error("⚠️ Maintenance Required!")
-            st.write(f"Confidence Level: **{probability*100:.1f}%**")
+            st.warning("Please fill in all the details before predicting.")
 
         else:
 
-            st.success("✅ Vehicle is Safe!")
-            st.write(f"Risk Probability: **{probability*100:.1f}%**")
+            input_df = pd.DataFrame([user_input_dict])
+
+            prediction = model.predict(input_df)
+
+            probability = model.predict_proba(input_df)[0][1]
+
+            if prediction[0] == 1:
+
+                st.error("⚠️ Maintenance Required!")
+                st.write(f"Confidence Level: **{probability*100:.1f}%**")
+
+            else:
+
+                st.success("✅ Vehicle is Safe!")
+                st.write(f"Risk Probability: **{probability*100:.1f}%**")
 
 # ===============================
-# DATA VISUALIZATION
+# TAB 2: DATA VISUALIZATION
 # ===============================
-st.markdown("---")
-st.header("📊 Interactive Data Insights")
+with tab2:
+    st.header("📊 Interactive Data Insights")
 
-row1 = st.columns(2)
-row2 = st.columns(2)
-row3 = st.columns(2)
+    row1 = st.columns(2)
+    row2 = st.columns(2)
+    row3 = st.columns(2)
 
-# 1 Maintenance Ratio
-with row1[0]:
+    # 1 Maintenance Ratio
+    with row1[0]:
+        temp_df = df.copy()
+        temp_df['Status'] = temp_df['Need_Maintenance'].map(
+            {1:'Needs Service',0:'Healthy'}
+        )
+        fig1 = px.pie(
+            temp_df,
+            names='Status',
+            hole=0.4,
+            title="Overall Fleet Health"
+        )
+        st.plotly_chart(fig1,use_container_width=True)
 
-    temp_df = df.copy()
+    # 2 Feature Importance
+    with row1[1]:
+        feat_df = pd.DataFrame({
+            "Feature":X.columns,
+            "Importance":model.feature_importances_
+        }).sort_values(by="Importance")
+        fig2 = px.bar(
+            feat_df,
+            x="Importance",
+            y="Feature",
+            orientation='h',
+            title="Top Decision Factors"
+        )
+        st.plotly_chart(fig2,use_container_width=True)
 
-    temp_df['Status'] = temp_df['Need_Maintenance'].map(
-        {1:'Needs Service',0:'Healthy'}
-    )
+    # 3 Reported Issues vs Maintenance
+    with row2[0]:
+        fig3 = px.histogram(
+            df,
+            x="Reported_Issues",
+            color="Need_Maintenance",
+            barmode="group",
+            title="Impact of Reported Issues on Maintenance"
+        )
+        st.plotly_chart(fig3,use_container_width=True)
 
-    fig1 = px.pie(
-        temp_df,
-        names='Status',
-        hole=0.4,
-        title="Overall Fleet Health"
-    )
+    # 4 Vehicle Model Health
+    with row2[1]:
+        fig5 = px.histogram(
+            df,
+            x="Vehicle_Model",
+            color="Need_Maintenance",
+            title="Maintenance Needs by Vehicle Model"
+        )
+        st.plotly_chart(fig5,use_container_width=True)
 
-    st.plotly_chart(fig1,use_container_width=True)
+    # 5 Vehicle Age vs Distance Density
+    with row3[0]:
+        fig8 = px.density_heatmap(
+            df,
+            x="Vehicle_Age",
+            y="Odometer_Reading",
+            title="Vehicle Age vs Distance Density"
+        )
+        st.plotly_chart(fig8,use_container_width=True)
 
-# 2 Feature Importance
-with row1[1]:
-
-    feat_df = pd.DataFrame({
-        "Feature":X.columns,
-        "Importance":model.feature_importances_
-    }).sort_values(by="Importance")
-
-    fig2 = px.bar(
-        feat_df,
-        x="Importance",
-        y="Feature",
-        orientation='h',
-        title="Top Decision Factors"
-    )
-
-    st.plotly_chart(fig2,use_container_width=True)
-
-# 3 Reported Issues vs Maintenance
-with row2[0]:
-
-    fig3 = px.histogram(
-        df,
-        x="Reported_Issues",
-        color="Need_Maintenance",
-        barmode="group",
-        title="Impact of Reported Issues on Maintenance"
-    )
-
-    st.plotly_chart(fig3,use_container_width=True)
-
-# 4 Vehicle Model Health
-with row2[1]:
-
-    fig5 = px.histogram(
-        df,
-        x="Vehicle_Model",
-        color="Need_Maintenance",
-        title="Maintenance Needs by Vehicle Model"
-    )
-
-    st.plotly_chart(fig5,use_container_width=True)
-
-# 5 Vehicle Age vs Distance Density
-with row3[0]:
-
-    fig8 = px.density_heatmap(
-        df,
-        x="Vehicle_Age",
-        y="Odometer_Reading",
-        title="Vehicle Age vs Distance Density"
-    )
-
-
-    st.plotly_chart(fig8,use_container_width=True)
+# ===============================
+# TAB 3: DATA PREVIEW
+# ===============================
+with tab3:
+    st.header("📋 Dataset Preview")
+    
+    # Displays the number of rows and columns in the dataset
+    st.write(f"This dataset contains **{df.shape[0]} rows** and **{df.shape[1]} columns**.")
+    
+    st.markdown("---")
+    st.write("Below is the raw data used to train the machine learning model:")
+    
+    # Displays the data as an interactive table
+    st.dataframe(df, use_container_width=True)
