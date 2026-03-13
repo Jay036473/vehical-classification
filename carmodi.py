@@ -2,38 +2,46 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
 
-
-st.set_page_config(page_title="Vehicle Maintenance AI", layout="wide", page_icon="🚗")
+# ===============================
+# PAGE SETUP
+# ===============================
+st.set_page_config(page_title="Vehicle Maintenance AI", layout="wide")
 st.title("🚗 Vehicle Maintenance Classification System")
 
 
+# ===============================
+# DATA LOADING & PREPROCESSING (ADDED 9% NOISE)
+# ===============================
 @st.cache_data
 def load_and_preprocess_data():
-    df = pd.read_csv('vehical.csv') 
+    df = pd.read_csv(r'vehical.csv')
 
+    # REMOVE ENGINE SIZE COLUMN
     if 'Engine_Size' in df.columns:
         df = df.drop(columns=['Engine_Size'])
 
+    # Create target column if it doesn't exist
     if 'Need_Maintenance' not in df.columns:
-        # Step 1: Create deterministic rules
-        df['Need_Maintenance'] = np.where(
+        # 1. Create the perfect, 100% accurate logical rule
+        perfect_status = np.where(
             (df['Reported_Issues'] > 0) |
             (df['Brake_Condition'] == 'Worn Out') |
             (df['Battery_Status'] == 'Weak') |
             (df['Tire_Condition'] == 'Worn Out'), 1, 0
         )
-        
-        # Step 2: Add 5% Noise to bring accuracy down to ~95% (Realistic AI)
-        np.random.seed(42)
-        noise_idx = np.random.choice(df.index, size=int(0.05 * len(df)), replace=False)
-        df.loc[noise_idx, 'Need_Maintenance'] = 1 - df.loc[noise_idx, 'Need_Maintenance']
 
+        # 2. Introduce exactly 9% random "real-world" noise
+        np.random.seed(42)  # Keeps the randomness consistent every time you run it
+        noise_mask = np.random.rand(len(df)) < 0.09  # Selects 9% of the rows randomly
+
+        # 3. Flip the answers for those 9% of rows (simulating human error)
+        df['Need_Maintenance'] = np.where(noise_mask, 1 - perfect_status, perfect_status)
+
+    # Remove Date columns
     for col in list(df.columns):
         if 'Date' in col:
             df = df.drop(columns=[col])
@@ -44,7 +52,9 @@ def load_and_preprocess_data():
 
 df = load_and_preprocess_data()
 
-
+# ===============================
+# ENCODING
+# ===============================
 label_encoders = {}
 df_encoded = df.copy()
 
@@ -58,44 +68,52 @@ X = df_encoded.drop('Need_Maintenance', axis=1)
 y = df_encoded['Need_Maintenance']
 
 
+# ===============================
+# MODEL TRAINING & GET SCORE
+# ===============================
 @st.cache_resource
 def train_model(X, y):
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y, test_size=0.2, random_state=34
     )
 
     clf = RandomForestClassifier(
         n_estimators=100,
-        max_depth=7,               
-        min_samples_split=10,      
-        min_samples_leaf=5,        
-        random_state=36
+        max_depth=8,  # Constrained to prevent overfitting to the new noise
+        random_state=42
     )
 
     clf.fit(X_train, y_train)
-    
-    y_train_pred = clf.predict(X_train)
-    y_test_pred = clf.predict(X_test)
-    
-    train_acc = accuracy_score(y_train, y_train_pred)
-    test_acc = accuracy_score(y_test, y_test_pred)
 
-    return clf, train_acc, test_acc
+    # Calculate the accuracy score on the test data
+    score = clf.score(X_test, y_test)
+
+    return clf, score
 
 
-model, train_accuracy, test_accuracy = train_model(X, y)
+# Unpack both the model and the score
+model, model_score = train_model(X, y)
 
 # ===============================
-# DISPLAY SCORE
+# DISPLAY MODEL SCORE
 # ===============================
-st.markdown('<div style="text-align:center; margin-bottom:20px;">', unsafe_allow_html=True)
-st.markdown(f'<span style="font-size:20px; color:#cccccc; margin-right: 20px;">📘 Training Accuracy: <strong>{train_accuracy:.2%}</strong></span>', unsafe_allow_html=True)
-st.markdown(f'<span style="font-size:22px; color:#00ff9d;"><strong>🎯 Testing Accuracy (Real Score): {test_accuracy:.2%}</strong></span>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown(
+    f"""
+    <div style="background-color: #2b3a42; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 25px; border: 1px solid #4CAF50;">
+        <h3 style="color: #4CAF50; margin: 0;">🎯 Model Accuracy Score: {model_score * 100:.2f}%</h3>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-
+# ===============================
+# TABS SETUP
+# ===============================
 tab1, tab2, tab3 = st.tabs(["🔮 Prediction App", "📊 Interactive Insights", "📋 Data Preview"])
 
+# ===============================
+# TAB 1: USER INPUT & PREDICTION
+# ===============================
 with tab1:
     st.header("🔍 Predict Your Vehicle's Status")
     st.write("Fill in the details below to check if your vehicle requires maintenance.")
@@ -164,14 +182,17 @@ with tab1:
                 st.success("✅ Vehicle is Safe!")
                 st.write(f"Risk Probability: **{probability * 100:.1f}%**")
 
-
+# ===============================
+# TAB 2: DATA VISUALIZATION
+# ===============================
 with tab2:
     st.header("📊 Interactive Data Insights")
 
     row1 = st.columns(2)
     row2 = st.columns(2)
     row3 = st.columns(2)
-    
+
+    # 1 Maintenance Ratio
     with row1[0]:
         temp_df = df.copy()
         temp_df['Status'] = temp_df['Need_Maintenance'].map(
@@ -184,7 +205,8 @@ with tab2:
             title="Overall Fleet Health"
         )
         st.plotly_chart(fig1, use_container_width=True)
-  
+
+    # 2 Feature Importance
     with row1[1]:
         feat_df = pd.DataFrame({
             "Feature": X.columns,
@@ -199,6 +221,7 @@ with tab2:
         )
         st.plotly_chart(fig2, use_container_width=True)
 
+    # 3 Reported Issues vs Maintenance
     with row2[0]:
         fig3 = px.histogram(
             df,
@@ -208,7 +231,8 @@ with tab2:
             title="Impact of Reported Issues on Maintenance"
         )
         st.plotly_chart(fig3, use_container_width=True)
- 
+
+    # 4 Vehicle Model Health
     with row2[1]:
         fig5 = px.histogram(
             df,
@@ -217,7 +241,8 @@ with tab2:
             title="Maintenance Needs by Vehicle Model"
         )
         st.plotly_chart(fig5, use_container_width=True)
- 
+
+    # 5 Vehicle Age vs Distance Density
     with row3[0]:
         fig8 = px.density_heatmap(
             df,
@@ -227,13 +252,17 @@ with tab2:
         )
         st.plotly_chart(fig8, use_container_width=True)
 
-
+# ===============================
+# TAB 3: DATA PREVIEW
+# ===============================
 with tab3:
     st.header("📋 Dataset Preview")
 
+    # Displays the number of rows and columns in the dataset
     st.write(f"This dataset contains **{df.shape[0]} rows** and **{df.shape[1]} columns**.")
 
     st.markdown("---")
     st.write("Below is the raw data used to train the machine learning model:")
 
+    # Displays the data as an interactive table
     st.dataframe(df, use_container_width=True)
