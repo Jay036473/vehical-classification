@@ -14,19 +14,18 @@ st.title("🚗 Vehicle Maintenance Classification System")
 
 
 # ===============================
-# DATA LOADING & PREPROCESSING (ADDED 9% NOISE)
+# DATA LOADING & PREPROCESSING
 # ===============================
 @st.cache_data
 def load_and_preprocess_data():
     df = pd.read_csv(r'vehical.csv')
 
-    # REMOVE ENGINE SIZE COLUMN
-    if 'Engine_Size' in df.columns:
-        df = df.drop(columns=['Engine_Size'])
+    # REMOVE ENGINE SIZE COLUMN (Commented out so it stays in the data)
+    # if 'Engine_Size' in df.columns:
+    #     df = df.drop(columns=['Engine_Size'])
 
-    # Create target column if it doesn't exist
+    # Create target column if it doesn't exist (Required for ML to train)
     if 'Need_Maintenance' not in df.columns:
-        # 1. Create the perfect, 100% accurate logical rule
         perfect_status = np.where(
             (df['Reported_Issues'] > 0) |
             (df['Brake_Condition'] == 'Worn Out') |
@@ -34,11 +33,9 @@ def load_and_preprocess_data():
             (df['Tire_Condition'] == 'Worn Out'), 1, 0
         )
 
-        # 2. Introduce exactly 9% random "real-world" noise
-        np.random.seed(42)  # Keeps the randomness consistent every time you run it
-        noise_mask = np.random.rand(len(df)) < 0.09  # Selects 9% of the rows randomly
+        np.random.seed(42)
+        noise_mask = np.random.rand(len(df)) < 0.09
 
-        # 3. Flip the answers for those 9% of rows (simulating human error)
         df['Need_Maintenance'] = np.where(noise_mask, 1 - perfect_status, perfect_status)
 
     # Remove Date columns
@@ -79,7 +76,7 @@ def train_model(X, y):
 
     clf = RandomForestClassifier(
         n_estimators=100,
-        max_depth=8,  # Constrained to prevent overfitting to the new noise
+        max_depth=8,
         random_state=42
     )
 
@@ -258,11 +255,17 @@ with tab2:
 with tab3:
     st.header("📋 Dataset Preview")
 
-    # Displays the number of rows and columns in the dataset
-    st.write(f"This dataset contains **{df.shape[0]} rows** and **{df.shape[1]} columns**.")
+    # ---> CHANGED: Create a display dataframe that HIDES 'Need_Maintenance' <---
+    display_df = df.drop(columns=['Need_Maintenance'], errors='ignore')
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(label="Total Rows (Vehicles)", value=f"{display_df.shape[0]:,}")
+    with col2:
+        st.metric(label="Total Columns (Features)", value=f"{display_df.shape[1]}")
 
     st.markdown("---")
-    st.write("Below is the raw data used to train the machine learning model:")
+    st.write("Below is the raw data matching your original Excel sheet:")
 
-    # Displays the data as an interactive table
-    st.dataframe(df, use_container_width=True)
+    # Displays the data WITHOUT the 'Need_Maintenance' column
+    st.dataframe(display_df, use_container_width=True)
