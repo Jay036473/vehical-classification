@@ -91,17 +91,6 @@ def train_model(X, y):
 # Unpack both the model and the score
 model, model_score = train_model(X, y)
 
-# ===============================
-# DISPLAY MODEL SCORE
-# ===============================
-st.markdown(
-    f"""
-    <div style="background-color: #2b3a42; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 25px; border: 1px solid #4CAF50;">
-        <h3 style="color: #4CAF50; margin: 0;">🎯 Model Accuracy Score: {model_score * 100:.2f}%</h3>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
 
 # ===============================
 # TABS SETUP
@@ -155,6 +144,9 @@ with tab1:
 
     st.markdown("---")
 
+    # ===============================
+    # PREDICTION (Score moved here!)
+    # ===============================
     if st.button("Check Maintenance Requirement", use_container_width=True):
 
         if None in user_input_dict.values():
@@ -169,6 +161,17 @@ with tab1:
 
             probability = model.predict_proba(input_df)[0][1]
 
+            # Display the Model Accuracy Score first
+            st.markdown(
+                f"""
+                <div style="background-color: #2b3a42; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 25px; border: 1px solid #4CAF50;">
+                    <h3 style="color: #4CAF50; margin: 0;">🎯 Model Accuracy Score: {model_score * 100:.2f}%</h3>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            # Then display the Prediction Result
             if prediction[0] == 1:
 
                 st.error("⚠️ Maintenance Required!")
